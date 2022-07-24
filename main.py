@@ -113,6 +113,24 @@ class Request:
     def next_process(self):
         self.turn += 1
 
+def check_error(service_type):
+    p = 0
+    if service_type == "mobile portal service":
+        p = 0.01
+    elif service_type == "order management service":
+        p = 0.03
+    elif service_type == "payment service":
+        p = 0.2
+    elif service_type == "web portal service":
+        p = 0.01
+    elif service_type == "customers management service":
+        p = 0.02
+    elif service_type == "delivery communication":
+        p = 0.1
+    elif service_type == "restaurant management service":
+        p = 0.02
+
+    return p >= random.random()
 
 def request_generator(rate):
     global env
