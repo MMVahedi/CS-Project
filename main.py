@@ -18,6 +18,19 @@ class Service:
         elif self.type == "payment service":
             self.resources = Service.payment_resources
             self.mean = 1.0 / 12
+        elif self.type == "web portal service":
+            self.resources = Service.mobile_portal_resources
+            self.mean = 1.0 / 3
+        elif self.type == "customers management service":
+            self.resources = Service.order_management_resources
+            self.mean = 1.0 / 5
+        elif self.type == "delivery communication":
+            self.resources = Service.order_management_resources
+            self.mean = 1.0 / 9
+        elif self.type == "restaurant management service":
+            self.resources = Service.order_management_resources
+            self.mean = 1.0 / 8
+
 
 
 class Request:
@@ -33,6 +46,27 @@ class Request:
             self.processes.append(Service("mobile portal service"))
             self.processes.append(Service("order management service"))
             self.processes.append(Service("payment service"))
+        elif type == 2:
+            self.processes.append(Service("web portal service"))
+            self.processes.append(Service("order management service"))
+            self.processes.append(Service("payment service"))
+        elif type == 3:
+            self.processes.append(Service("mobile portal service"))
+            self.processes.append(Service("customers management service"))
+            self.processes.append(Service("delivery communication"))
+        elif type == 4:
+            self.processes.append(Service("mobile portal service"))
+            self.processes.append(Service("restaurant management service"))
+        elif type == 5:
+            self.processes.append(Service("web portal service"))
+            self.processes.append(Service("restaurant management service"))
+        elif type == 6:
+            self.processes.append(Service("web portal service"))
+            self.processes.append(Service("restaurant management service"))
+            self.processes.append(Service("delivery communication"))
+        elif type == 7:
+            self.processes.append(Service("mobile portal service"))
+            self.processes.append(Service("order management service"))
 
     def current_process(self):
         return self.processes[self.turn]
@@ -49,17 +83,17 @@ def request_generator(rate):
         if request_type < 0.2:
             request = Request(1)
         elif request_type < 0.3:
-            request = Request(1)
+            request = Request(2)
         elif request_type < 0.35:
-            request = Request(1)
+            request = Request(3)
         elif request_type < 0.60:
-            request = Request(1)
+            request = Request(4)
         elif request_type < 0.75:
-            request = Request(1)
+            request = Request(5)
         elif request_type < 0.95:
-            request = Request(1)
+            request = Request(6)
         else:
-            request = Request(1)
+            request = Request(7)
         request.next_process()
         env.process(general_service(request))
         t = random.expovariate(1.0 / rate)
