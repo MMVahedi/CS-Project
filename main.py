@@ -140,6 +140,7 @@ def request_generator(rate):
             request = Request(6)
         else:
             request = Request(7)
+
         request.next_process()
         env.process(general_service(request))
         t = random.expovariate(1.0 / rate)
@@ -154,13 +155,13 @@ def general_service(request):
     time_entered_queue = env.now
     print(service.type, "time_entered_queue: ", time_entered_queue, request.id)
     service_queue = service.get_queue()
-    prefer_index = find_prefer_request(service_queue)
-    request = service_queue[prefer_index]
+    preferred_index = find_preferred_request(service_queue)
+    request = service_queue[preferred_index]
     with service.get_resources().request() as req:
         yield req
         time_lef_queue = env.now
-        service.remove_customer_from_queue(prefer_index)
-        print(service.type, "time_lef_queue: ", time_lef_queue, request.id)
+        service.remove_customer_from_queue(preferred_index)
+        print(service.type, "time_left_queue: ", time_lef_queue, request.id)
         time_in_queue = time_lef_queue - time_entered_queue
         service.add_time_to_queue_time_sum(time_in_queue)
         next_service_start_time = time_lef_queue
@@ -172,19 +173,19 @@ def general_service(request):
         next_service_total_time = next_service_end_time - next_service_start_time
         service_time = random.expovariate(service.mean)
         service.add_busy_time(service_time + next_service_total_time)
-        print(service.type, "service time:", service_time)
+        print(service.type, "service time: ", service_time)
         yield env.timeout(service_time)
         print(service.type, "service finished in", env.now)
 
 
-def find_prefer_request(queue):
+def find_preferred_request(queue):
     try:
-        prefer_request = queue[0]
+        preferred_request = queue[0]
         index = 0
         for i in range(1, len(queue)):
             request = queue[i]
-            if request.priority < prefer_request.priority:
-                prefer_request = request
+            if request.priority < preferred_request.priority:
+                preferred_request = request
                 index = i
         return index
     except:
