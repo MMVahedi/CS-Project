@@ -3,65 +3,45 @@ import simpy
 
 
 class Service:
-    mobile_portal_resources = None
-    order_management_resources = None
-    payment_resources = None
-    web_portal_resources = None
-    customers_management_resources = None
-    delivery_communication_resources = None
-    restaurant_management_resources = None
-    mobile_portal_queue = []
-    order_management_queue = []
-    payment_queue = []
-    web_portal_queue = []
-    customers_management_queue = []
-    delivery_communication_queue = []
-    restaurant_management_queue = []
-    mobile_portal_queue_time_sum = 0
-    order_management_queue_time_sum = 0
-    payment_queue_time_sum = 0
-    web_portal_queue_time_sum = 0
-    customers_management_queue_time_sum = 0
-    delivery_communication_queue_time_sum = 0
-    restaurant_management_queue_time_sum = 0
+    All_resources = [None] * 7
+    Queues = [[] for i in range(7)]
+    Queues_time_sum = [0] * 7
 
     def __init__(self, service_type):
         self.type = service_type
         if self.type == "mobile portal service":
-            self.resources = Service.mobile_portal_resources
-            self.queue = Service.mobile_portal_queue
-            self.queue_time_sum = Service.mobile_portal_queue_time_sum
+            self.id = 0
             self.mean = 1.0 / 2
         elif self.type == "order management service":
-            self.resources = Service.order_management_resources
-            self.queue = Service.order_management_queue
-            self.queue_time_sum = Service.order_management_queue_time_sum
+            self.id = 1
             self.mean = 1.0 / 6
         elif self.type == "payment service":
-            self.resources = Service.payment_resources
-            self.queue = Service.payment_queue
-            self.queue_time_sum = Service.payment_queue_time_sum
+            self.id = 2
             self.mean = 1.0 / 12
         elif self.type == "web portal service":
-            self.resources = Service.web_portal_resources
-            self.queue = Service.web_portal_queue
-            self.queue_time_sum = Service.web_portal_queue_time_sum
+            self.id = 3
             self.mean = 1.0 / 3
         elif self.type == "customers management service":
-            self.resources = Service.customers_management_resources
-            self.queue = Service.customers_management_queue
-            self.queue_time_sum = Service.customers_management_queue_time_sum
+            self.id = 4
             self.mean = 1.0 / 5
         elif self.type == "delivery communication":
-            self.resources = Service.delivery_communication_resources
-            self.queue = Service.delivery_communication_queue
-            self.queue_time_sum = Service.delivery_communication_queue_time_sum
+            self.id = 5
             self.mean = 1.0 / 9
         elif self.type == "restaurant management service":
-            self.resources = Service.restaurant_management_resources
-            self.queue = Service.restaurant_management_queue
-            self.queue_time_sum = Service.restaurant_management_queue_time_sum
+            self.id = 6
             self.mean = 1.0 / 8
+
+    def add_customer_to_queue(self, request_id):
+        Service.Queues[self.id].append(request_id)
+
+    def remove_customer_from_queue(self):
+        Service.Queues[self.id].pop(0)
+
+    def add_time_to_queue_time_sum(self, time):
+        Service.Queues_time_sum[self.id] += time
+
+    def get_resources(self):
+        return Service.All_resources[self.id]
 
 
 class Request:
@@ -113,6 +93,7 @@ class Request:
     def next_process(self):
         self.turn += 1
 
+
 def check_error(service_type):
     p = 0
     if service_type == "mobile portal service":
@@ -131,6 +112,7 @@ def check_error(service_type):
         p = 0.02
 
     return p >= random.random()
+
 
 def request_generator(rate):
     global env
@@ -161,16 +143,16 @@ def request_generator(rate):
 def general_service(request):
     global env
     service = request.current_process()
-    service.queue.append(request.id)
+    service.add_customer_to_queue(request.id)
     time_entered_queue = env.now
     print(service.type, "time_entered_queue: ", time_entered_queue, request.id)
-    with service.resources.request() as req:
+    with service.get_resources().request() as req:
         yield req
         time_lef_queue = env.now
-        service.queue.pop(0)
+        service.remove_customer_from_queue()
         print(service.type, "time_lef_queue: ", time_lef_queue, request.id)
         time_in_queue = time_lef_queue - time_entered_queue
-        service.queue_time_sum += time_in_queue
+        service.add_time_to_queue_time_sum(time_in_queue)
         if len(request.processes) > request.turn + 1:
             request.next_process()
             yield env.process(general_service(request))
@@ -180,17 +162,17 @@ def general_service(request):
         yield env.timeout(service_time)
 
 
-Queues_length = {}
 env = simpy.Environment()
 
 number_of_resources = list(map(int, input().split()))
-Service.restaurant_management_resources = simpy.Resource(env, capacity=number_of_resources[0])
-Service.customers_management_resources = simpy.Resource(env, capacity=number_of_resources[1])
-Service.order_management_resources = simpy.Resource(env, capacity=number_of_resources[2])
-Service.delivery_communication_resources = simpy.Resource(env, capacity=number_of_resources[3])
-Service.payment_resources = simpy.Resource(env, capacity=number_of_resources[4])
-Service.mobile_portal_resources = simpy.Resource(env, capacity=number_of_resources[5])
-Service.web_portal_resources = simpy.Resource(env, capacity=number_of_resources[6])
+
+Service.All_resources[6] = simpy.Resource(env, capacity=number_of_resources[0])
+Service.All_resources[4] = simpy.Resource(env, capacity=number_of_resources[1])
+Service.All_resources[1] = simpy.Resource(env, capacity=number_of_resources[2])
+Service.All_resources[5] = simpy.Resource(env, capacity=number_of_resources[3])
+Service.All_resources[2] = simpy.Resource(env, capacity=number_of_resources[4])
+Service.All_resources[0] = simpy.Resource(env, capacity=number_of_resources[5])
+Service.All_resources[3] = simpy.Resource(env, capacity=number_of_resources[6])
 
 rate = int(input())
 simulation_time = int(input())
