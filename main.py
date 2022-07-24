@@ -42,6 +42,7 @@ class Request:
     def __init__(self, type):
         Request.id += 1
         self.id = Request.id
+        self.priority = 0
         self.type = type
         self.processes = []
         self.turn = -1
@@ -49,27 +50,34 @@ class Request:
             self.processes.append(Service("mobile portal service"))
             self.processes.append(Service("order management service"))
             self.processes.append(Service("payment service"))
+            self.priority = 1
         elif type == 2:
             self.processes.append(Service("web portal service"))
             self.processes.append(Service("order management service"))
             self.processes.append(Service("payment service"))
+            self.priority = 1
         elif type == 3:
             self.processes.append(Service("mobile portal service"))
             self.processes.append(Service("customers management service"))
             self.processes.append(Service("delivery communication"))
+            self.priority = 2
         elif type == 4:
             self.processes.append(Service("mobile portal service"))
             self.processes.append(Service("restaurant management service"))
+            self.priority = 2
         elif type == 5:
             self.processes.append(Service("web portal service"))
             self.processes.append(Service("restaurant management service"))
+            self.priority = 2
         elif type == 6:
             self.processes.append(Service("web portal service"))
             self.processes.append(Service("restaurant management service"))
             self.processes.append(Service("delivery communication"))
+            self.priority = 1
         elif type == 7:
             self.processes.append(Service("mobile portal service"))
             self.processes.append(Service("order management service"))
+            self.priority = 2
 
     def current_process(self):
         return self.processes[self.turn]
