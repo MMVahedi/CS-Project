@@ -4,9 +4,10 @@ import simpy
 
 class Service:
     All_resources = [None] * 7
-    Queues = [[] for i in range(7)]
+    Queues = [[] for _ in range(7)]
     Queues_time_sum = [0] * 7
     Servers_busy_times = [0] * 7
+    In_progress_requests = [[] for _ in range(7)]
 
     def __init__(self, service_type):
         self.type = service_type
@@ -49,6 +50,16 @@ class Service:
 
     def get_queue(self):
         return Service.Queues[self.id]
+
+    def add_in_progress_request(self, request, time):
+        Service.In_progress_requests[self.id].append([request, time])
+
+    def remove_in_progress_requests(self, request):
+        lst = Service.In_progress_requests[self.id]
+        for i in range(len(lst)):
+            if lst[i][0].id == request.id:
+                lst.pop(i)
+                break
 
 
 class Request:
@@ -161,30 +172,30 @@ def general_service(request):
     service = request.current_process()
     service.add_customer_to_queue(request)
     request.enter_queue_time = env.now
-    print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
-    service_queue = service.get_queue()
-    preferred_index = find_preferred_request(service_queue)
-    request = service_queue[preferred_index]
+    # print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
     with service.get_resources().request() as req:
         yield req
-        request.exit_queue_time = env.now
-        service.remove_customer_from_queue(preferred_index)
-        print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
-        time_in_queue = request.exit_queue_time - request.enter_queue_time
-        request.add_waiting_time(time_in_queue)
-        service.add_time_to_queue_time_sum(time_in_queue)
-        next_service_start_time = request.exit_queue_time
-        if len(request.processes) > request.turn + 1:
-            request.next_process()
-            yield env.process(general_service(request))
-            request.turn -= 1
-        next_service_end_time = env.now
-        next_service_total_time = next_service_end_time - next_service_start_time
-        service_time = random.expovariate(service.mean)
-        service.add_busy_time(service_time + next_service_total_time)
-        print(service.type, "service time: ", service_time)
-        yield env.timeout(service_time)
-        print(service.type, "service finished in", env.now)
+        service_queue = service.get_queue()
+        preferred_index = find_preferred_request(service_queue)
+        request = service_queue[preferred_index]
+        if len(service_queue) > 0:
+            request.exit_queue_time = env.now
+            service.remove_customer_from_queue(preferred_index)
+            service.add_in_progress_request(request, env.now)
+            # print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
+            time_in_queue = request.exit_queue_time - request.enter_queue_time
+            request.add_waiting_time(time_in_queue)
+            service.add_time_to_queue_time_sum(time_in_queue)
+            if len(request.processes) > request.turn + 1:
+                request.next_process()
+                yield env.process(general_service(request))
+                request.turn -= 1
+            service_time = random.expovariate(service.mean)
+            service.add_busy_time(service_time + (env.now - request.exit_queue_time))
+            # print(service.type, "service time: ", service_time)
+            yield env.timeout(service_time)
+            service.remove_in_progress_requests(request)
+            # print(service.type, "service finished in", env.now)
 
 
 def find_preferred_request(queue):
@@ -216,8 +227,74 @@ Service.All_resources[3] = simpy.Resource(env, capacity=number_of_resources[6])
 
 rate = int(input())
 simulation_time = int(input())
+simulation_time = 1000  # TODO: remove me
 
 maximum_waiting_times = list(map(int, input().split()))
 
 env.process(request_generator(rate))
-env.run(until=200)
+env.run(until=simulation_time)
+
+for i in range(len(Service.Queues)):
+    for request in Service.Queues[i]:
+        time_in_queue = simulation_time - request.enter_queue_time
+        request.add_waiting_time(time_in_queue)
+        request.current_process().add_time_to_queue_time_sum(time_in_queue)
+
+print('-' * 50)
+print("Queue length mean for each service:")
+print("     Mobile portal service:", Service.Queues_time_sum[0] / simulation_time)
+print("     Order management service:", Service.Queues_time_sum[1] / simulation_time)
+print("     Payment service:", Service.Queues_time_sum[2] / simulation_time)
+print("     Web portal service:", Service.Queues_time_sum[3] / simulation_time)
+print("     Customers management service:", Service.Queues_time_sum[4] / simulation_time)
+print("     Delivery communication:", Service.Queues_time_sum[5] / simulation_time)
+print("     Restaurant management service:", Service.Queues_time_sum[6] / simulation_time)
+print('-' * 50)
+
+for i in range(7):
+    if Request.number_of_received_requests[i] == 0:
+        Request.number_of_received_requests[i] = -1
+
+print('-' * 50)
+print("Waiting time in queue mean for each request:")
+print("     Place order through mobile phone:",
+      Request.waiting_times[0] / Request.number_of_received_requests[0])
+print("     Place order through the web:",
+      Request.waiting_times[1] / Request.number_of_received_requests[1])
+print("     Send a message to the courier:",
+      Request.waiting_times[2] / Request.number_of_received_requests[2])
+print("     See restaurant information via mobile:",
+      Request.waiting_times[3] / Request.number_of_received_requests[3])
+print("     View restaurant information through the web:",
+      Request.waiting_times[4] / Request.number_of_received_requests[4])
+print("     Courier request:",
+      Request.waiting_times[5] / Request.number_of_received_requests[5])
+print("     Order tracking:",
+      Request.waiting_times[6] / Request.number_of_received_requests[6])
+print('-' * 50)
+
+for i in range(len(Service.In_progress_requests)):
+    for lst in Service.In_progress_requests[i]:
+        progress_time = simulation_time - lst[1]
+        Service.Servers_busy_times[i] += progress_time
+
+print('-' * 50)
+print("The efficiency of services:")
+print("     Mobile portal service:",
+      Service.Servers_busy_times[0] / (simulation_time * number_of_resources[5]))
+print("     Order management service:",
+      Service.Servers_busy_times[1] / (simulation_time * number_of_resources[2]))
+print("     Payment service:",
+      Service.Servers_busy_times[2] / (simulation_time * number_of_resources[4]))
+print("     Web portal service:",
+      Service.Servers_busy_times[3] / (simulation_time * number_of_resources[6]))
+print("     Customers management service:",
+      Service.Servers_busy_times[4] / (simulation_time * number_of_resources[1]))
+print("     Delivery communication:",
+      Service.Servers_busy_times[5] / (simulation_time * number_of_resources[3]))
+print("     Restaurant management service:",
+      Service.Servers_busy_times[6] / (simulation_time * number_of_resources[0]))
+print('-' * 50)
+
+print(Request.number_of_received_requests)
+# TODO busy time and waiting time
