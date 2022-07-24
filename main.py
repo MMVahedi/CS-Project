@@ -6,6 +6,7 @@ class Service:
     All_resources = [None] * 7
     Queues = [[] for i in range(7)]
     Queues_time_sum = [0] * 7
+    Servers_busy_times = [0] * 7
 
     def __init__(self, service_type):
         self.type = service_type
@@ -42,6 +43,9 @@ class Service:
 
     def get_resources(self):
         return Service.All_resources[self.id]
+
+    def add_busy_time(self, time):
+        Service.Servers_busy_times[self.id] += time
 
 
 class Request:
@@ -153,13 +157,18 @@ def general_service(request):
         print(service.type, "time_lef_queue: ", time_lef_queue, request.id)
         time_in_queue = time_lef_queue - time_entered_queue
         service.add_time_to_queue_time_sum(time_in_queue)
+        next_service_start_time = time_lef_queue
         if len(request.processes) > request.turn + 1:
             request.next_process()
             yield env.process(general_service(request))
             request.turn -= 1
+        next_service_end_time = env.now
+        next_service_total_time = next_service_end_time - next_service_start_time
         service_time = random.expovariate(service.mean)
+        service.add_busy_time(service_time + next_service_total_time)
         print(service.type, "service time:", service_time)
         yield env.timeout(service_time)
+        print(service.type, "service finished in", env.now)
 
 
 env = simpy.Environment()
