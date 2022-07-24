@@ -6,6 +6,10 @@ class Service:
     mobile_portal_resources = None
     order_management_resources = None
     payment_resources = None
+    web_portal_resources = None
+    customers_management_resources = None
+    delivery_communication_resources = None
+    restaurant_management_resources = None
 
     def __init__(self, type):
         self.type = type
@@ -19,18 +23,17 @@ class Service:
             self.resources = Service.payment_resources
             self.mean = 1.0 / 12
         elif self.type == "web portal service":
-            self.resources = Service.mobile_portal_resources
+            self.resources = Service.web_portal_resources
             self.mean = 1.0 / 3
         elif self.type == "customers management service":
-            self.resources = Service.order_management_resources
+            self.resources = Service.customers_management_resources
             self.mean = 1.0 / 5
         elif self.type == "delivery communication":
-            self.resources = Service.order_management_resources
+            self.resources = Service.delivery_communication_resources
             self.mean = 1.0 / 9
         elif self.type == "restaurant management service":
-            self.resources = Service.order_management_resources
+            self.resources = Service.restaurant_management_resources
             self.mean = 1.0 / 8
-
 
 
 class Request:
@@ -121,10 +124,20 @@ def general_service(request):
 
 
 env = simpy.Environment()
+
 number_of_resources = list(map(int, input().split()))
+Service.restaurant_management_resources = simpy.Resource(env, capacity=number_of_resources[0])
+Service.customers_management_resources = simpy.Resource(env, capacity=number_of_resources[1])
 Service.order_management_resources = simpy.Resource(env, capacity=number_of_resources[2])
+Service.delivery_communication_resources = simpy.Resource(env, capacity=number_of_resources[3])
 Service.payment_resources = simpy.Resource(env, capacity=number_of_resources[4])
 Service.mobile_portal_resources = simpy.Resource(env, capacity=number_of_resources[5])
-rate = 30
+Service.web_portal_resources = simpy.Resource(env, capacity=number_of_resources[6])
+
+rate = int(input())
+simulation_time = int(input())
+
+maximum_waiting_times = list(map(int, input().split()))
+
 env.process(request_generator(rate))
 env.run(until=50)
