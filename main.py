@@ -32,11 +32,11 @@ class Service:
             self.id = 6
             self.mean = 1.0 / 8
 
-    def add_customer_to_queue(self, request_id):
-        Service.Queues[self.id].append(request_id)
+    def add_customer_to_queue(self, request):
+        Service.Queues[self.id].append(request)
 
-    def remove_customer_from_queue(self):
-        Service.Queues[self.id].pop(0)
+    def remove_customer_from_queue(self, index):
+        Service.Queues[self.id].pop(index)
 
     def add_time_to_queue_time_sum(self, time):
         Service.Queues_time_sum[self.id] += time
@@ -46,6 +46,9 @@ class Service:
 
     def add_busy_time(self, time):
         Service.Servers_busy_times[self.id] += time
+
+    def get_queue(self):
+        return Service.Queues[self.id]
 
 
 class Request:
@@ -147,13 +150,16 @@ def request_generator(rate):
 def general_service(request):
     global env
     service = request.current_process()
-    service.add_customer_to_queue(request.id)
+    service.add_customer_to_queue(request)
     time_entered_queue = env.now
     print(service.type, "time_entered_queue: ", time_entered_queue, request.id)
+    service_queue = service.get_queue()
+    prefer_index = find_prefer_request(service_queue)
+    request = service_queue[prefer_index]
     with service.get_resources().request() as req:
         yield req
         time_lef_queue = env.now
-        service.remove_customer_from_queue()
+        service.remove_customer_from_queue(prefer_index)
         print(service.type, "time_lef_queue: ", time_lef_queue, request.id)
         time_in_queue = time_lef_queue - time_entered_queue
         service.add_time_to_queue_time_sum(time_in_queue)
@@ -169,6 +175,20 @@ def general_service(request):
         print(service.type, "service time:", service_time)
         yield env.timeout(service_time)
         print(service.type, "service finished in", env.now)
+
+
+def find_prefer_request(queue):
+    try:
+        prefer_request = queue[0]
+        index = 0
+        for i in range(1, len(queue)):
+            request = queue[i]
+            if request.priority < prefer_request.priority:
+                prefer_request = request
+                index = i
+        return index
+    except:
+        print("Error occurred in find prefer request function!")
 
 
 env = simpy.Environment()
@@ -189,4 +209,4 @@ simulation_time = int(input())
 maximum_waiting_times = list(map(int, input().split()))
 
 env.process(request_generator(rate))
-env.run(until=50)
+env.run(until=200)
