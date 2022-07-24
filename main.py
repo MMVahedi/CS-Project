@@ -53,12 +53,17 @@ class Service:
 
 class Request:
     id = 0
+    waiting_times = [0] * 7
+    number_of_received_requests = [0] * 7
 
     def __init__(self, request_type):
         Request.id += 1
+        self.enter_queue_time = 0
+        self.exit_queue_time = 0
         self.id = Request.id
         self.priority = 0
         self.type = request_type
+        Request.number_of_received_requests[self.type - 1] += 1
         self.processes = []
         self.turn = -1
         if request_type == 1:
@@ -99,6 +104,9 @@ class Request:
 
     def next_process(self):
         self.turn += 1
+
+    def add_waiting_time(self, time):
+        Request.waiting_times[self.type - 1] += time
 
 
 def check_error(service_type):
@@ -152,19 +160,20 @@ def general_service(request):
     global env
     service = request.current_process()
     service.add_customer_to_queue(request)
-    time_entered_queue = env.now
-    print(service.type, "time_entered_queue: ", time_entered_queue, request.id)
+    request.enter_queue_time = env.now
+    print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
     service_queue = service.get_queue()
     preferred_index = find_preferred_request(service_queue)
     request = service_queue[preferred_index]
     with service.get_resources().request() as req:
         yield req
-        time_lef_queue = env.now
+        request.exit_queue_time = env.now
         service.remove_customer_from_queue(preferred_index)
-        print(service.type, "time_left_queue: ", time_lef_queue, request.id)
-        time_in_queue = time_lef_queue - time_entered_queue
+        print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
+        time_in_queue = request.exit_queue_time - request.enter_queue_time
+        request.add_waiting_time(time_in_queue)
         service.add_time_to_queue_time_sum(time_in_queue)
-        next_service_start_time = time_lef_queue
+        next_service_start_time = request.exit_queue_time
         if len(request.processes) > request.turn + 1:
             request.next_process()
             yield env.process(general_service(request))
@@ -190,6 +199,7 @@ def find_preferred_request(queue):
         return index
     except:
         print("Error occurred in find prefer request function!")
+        return 0
 
 
 env = simpy.Environment()
