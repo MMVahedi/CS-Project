@@ -170,7 +170,7 @@ def general_service(request):
     service = request.current_process()
     service.add_customer_to_queue(request)
     request.enter_queue_time = env.now
-    #print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
+    # print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
     with service.get_resources().request() as req:
         yield req
         service_queue = service.get_queue()
@@ -181,7 +181,7 @@ def general_service(request):
         service_start_time = env.now
         service.remove_customer_from_queue(preferred_index)
         service.add_in_progress_request(request, env.now)
-        #print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
+        # print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
         time_in_queue = request.exit_queue_time - request.enter_queue_time
         request.add_waiting_time(time_in_queue)
         service.add_time_to_queue_time_sum(time_in_queue)
@@ -190,11 +190,11 @@ def general_service(request):
             yield env.process(general_service(request))
             request.turn -= 1
         service_time = random.expovariate(service.mean)
-            #print(service.type, "service time: ", service_time)
+        # print(service.type, "service time: ", service_time)
         yield env.timeout(service_time)
         service.add_busy_time(env.now - service_start_time)
         service.remove_in_progress_requests(request)
-            #print(service.type, "service finished in", env.now)
+        # print(service.type, "service finished in", env.now)
 
 
 def find_preferred_request(queue):
@@ -252,9 +252,10 @@ print('-' * 50)
 
 for i in range(7):
     if Request.number_of_received_requests[i] == 0:
-        Request.number_of_received_requests[i] = -1
+        Request.number_of_received_requests[i] = 1e-9
 
 print('-' * 50)
+print('Waiting time in queue mean:', sum(Request.waiting_times) / sum(Request.number_of_received_requests))
 print("Waiting time in queue mean for each request:")
 print("     Place order through mobile phone:",
       Request.waiting_times[0] / Request.number_of_received_requests[0])
@@ -294,6 +295,3 @@ print("     Delivery communication:",
 print("     Restaurant management service:",
       Service.Servers_busy_times[6] / (simulation_time * number_of_resources[0]))
 print('-' * 50)
-
-print(Request.number_of_received_requests)
-# TODO busy time and waiting time
