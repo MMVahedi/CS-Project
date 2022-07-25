@@ -36,8 +36,12 @@ class Service:
     def add_customer_to_queue(self, request):
         Service.Queues[self.id].append(request)
 
-    def remove_customer_from_queue(self, index):
-        Service.Queues[self.id].pop(index)
+    def remove_customer_from_queue(self, request):
+        queue = Service.Queues[self.id]
+        for i in range(len(queue)):
+            if queue[i].id == request.id:
+                queue.pop(i)
+                break
 
     def add_time_to_queue_time_sum(self, time):
         Service.Queues_time_sum[self.id] += time
@@ -171,15 +175,15 @@ def general_service(request):
     service.add_customer_to_queue(request)
     request.enter_queue_time = env.now
     # print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
-    with service.get_resources().request() as req:
+    with service.get_resources().request(priority=request.priority) as req:
         yield req
-        service_queue = service.get_queue()
-        preferred_index = find_preferred_request(service_queue)
-        request = service_queue[preferred_index]
+        # service_queue = service.get_queue()
+        # preferred_index = find_preferred_request(service_queue)
+        # request = service_queue[preferred_index]
         # if len(service_queue) > 0:
         request.exit_queue_time = env.now
         service_start_time = env.now
-        service.remove_customer_from_queue(preferred_index)
+        service.remove_customer_from_queue(request)
         service.add_in_progress_request(request, env.now)
         # print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
         time_in_queue = request.exit_queue_time - request.enter_queue_time
@@ -197,32 +201,32 @@ def general_service(request):
         # print(service.type, "service finished in", env.now)
 
 
-def find_preferred_request(queue):
-    try:
-        preferred_request = queue[0]
-        index = 0
-        for i in range(1, len(queue)):
-            request = queue[i]
-            if request.priority < preferred_request.priority:
-                preferred_request = request
-                index = i
-        return index
-    except:
-        print("Error occurred in find prefer request function!")
-        return 0
+# def find_preferred_request(queue):
+#     try:
+#         preferred_request = queue[0]
+#         index = 0
+#         for i in range(1, len(queue)):
+#             request = queue[i]
+#             if request.priority < preferred_request.priority:
+#                 preferred_request = request
+#                 index = i
+#         return index
+#     except:
+#         print("Error occurred in find prefer request function!")
+#         return 0
 
 
 env = simpy.Environment()
 
 number_of_resources = list(map(int, input().split()))
 
-Service.All_resources[6] = simpy.Resource(env, capacity=number_of_resources[0])
-Service.All_resources[4] = simpy.Resource(env, capacity=number_of_resources[1])
-Service.All_resources[1] = simpy.Resource(env, capacity=number_of_resources[2])
-Service.All_resources[5] = simpy.Resource(env, capacity=number_of_resources[3])
-Service.All_resources[2] = simpy.Resource(env, capacity=number_of_resources[4])
-Service.All_resources[0] = simpy.Resource(env, capacity=number_of_resources[5])
-Service.All_resources[3] = simpy.Resource(env, capacity=number_of_resources[6])
+Service.All_resources[6] = simpy.PriorityResource(env, capacity=number_of_resources[0])
+Service.All_resources[4] = simpy.PriorityResource(env, capacity=number_of_resources[1])
+Service.All_resources[1] = simpy.PriorityResource(env, capacity=number_of_resources[2])
+Service.All_resources[5] = simpy.PriorityResource(env, capacity=number_of_resources[3])
+Service.All_resources[2] = simpy.PriorityResource(env, capacity=number_of_resources[4])
+Service.All_resources[0] = simpy.PriorityResource(env, capacity=number_of_resources[5])
+Service.All_resources[3] = simpy.PriorityResource(env, capacity=number_of_resources[6])
 
 rate = int(input())
 simulation_time = int(input())
