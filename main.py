@@ -3,10 +3,10 @@ import simpy
 
 
 class Service:
-    All_resources = [None] * 7
+    All_resources = [None for _ in range(7)]
     Queues = [[] for _ in range(7)]
-    Queues_time_sum = [0] * 7
-    Servers_busy_times = [0] * 7
+    Queues_time_sum = [0 for _ in range(7)]
+    Servers_busy_times = [0 for _ in range(7)]
     In_progress_requests = [[] for _ in range(7)]
 
     def __init__(self, service_type):
@@ -142,7 +142,6 @@ def check_error(service_type):
 
 def request_generator(rate):
     global env
-    request_id = 0
     while True:
         request_type = random.random()
         if request_type < 0.2:
@@ -164,7 +163,6 @@ def request_generator(rate):
         env.process(general_service(request))
         t = random.expovariate(1.0 / rate)
         yield env.timeout(t)
-        request_id += 1
 
 
 def general_service(request):
@@ -172,30 +170,31 @@ def general_service(request):
     service = request.current_process()
     service.add_customer_to_queue(request)
     request.enter_queue_time = env.now
-    # print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
+    #print(service.type, "time_entered_queue: ", request.enter_queue_time, request.id)
     with service.get_resources().request() as req:
         yield req
         service_queue = service.get_queue()
         preferred_index = find_preferred_request(service_queue)
         request = service_queue[preferred_index]
-        if len(service_queue) > 0:
-            request.exit_queue_time = env.now
-            service.remove_customer_from_queue(preferred_index)
-            service.add_in_progress_request(request, env.now)
-            # print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
-            time_in_queue = request.exit_queue_time - request.enter_queue_time
-            request.add_waiting_time(time_in_queue)
-            service.add_time_to_queue_time_sum(time_in_queue)
-            if len(request.processes) > request.turn + 1:
-                request.next_process()
-                yield env.process(general_service(request))
-                request.turn -= 1
-            service_time = random.expovariate(service.mean)
-            service.add_busy_time(service_time + (env.now - request.exit_queue_time))
-            # print(service.type, "service time: ", service_time)
-            yield env.timeout(service_time)
-            service.remove_in_progress_requests(request)
-            # print(service.type, "service finished in", env.now)
+        # if len(service_queue) > 0:
+        request.exit_queue_time = env.now
+        service_start_time = env.now
+        service.remove_customer_from_queue(preferred_index)
+        service.add_in_progress_request(request, env.now)
+        #print(service.type, "time_left_queue: ", request.exit_queue_time, request.id)
+        time_in_queue = request.exit_queue_time - request.enter_queue_time
+        request.add_waiting_time(time_in_queue)
+        service.add_time_to_queue_time_sum(time_in_queue)
+        if len(request.processes) > request.turn + 1:
+            request.next_process()
+            yield env.process(general_service(request))
+            request.turn -= 1
+        service_time = random.expovariate(service.mean)
+            #print(service.type, "service time: ", service_time)
+        yield env.timeout(service_time)
+        service.add_busy_time(env.now - service_start_time)
+        service.remove_in_progress_requests(request)
+            #print(service.type, "service finished in", env.now)
 
 
 def find_preferred_request(queue):
@@ -231,7 +230,7 @@ simulation_time = 1000  # TODO: remove me
 
 maximum_waiting_times = list(map(int, input().split()))
 
-env.process(request_generator(rate))
+env.process(request_generator(1 / rate))
 env.run(until=simulation_time)
 
 for i in range(len(Service.Queues)):
